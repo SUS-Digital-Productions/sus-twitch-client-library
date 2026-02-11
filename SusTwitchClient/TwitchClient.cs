@@ -223,9 +223,24 @@ public sealed class TwitchClient : IDisposable, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the client synchronously. 
+    /// Note: DisposeAsync() is preferred to avoid potential deadlocks.
+    /// </summary>
     public void Dispose()
     {
-        DisposeAsync().AsTask().GetAwaiter().GetResult();
+        if (_disposed) return;
+
+        try
+        {
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+        catch (Exception)
+        {
+            // Best effort cleanup
+            _disposeLock.Dispose();
+            _disposed = true;
+        }
     }
 
     public async ValueTask DisposeAsync()

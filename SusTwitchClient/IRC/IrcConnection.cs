@@ -11,7 +11,7 @@ namespace SusTwitchClient.IRC;
 internal sealed class IrcConnection : IAsyncDisposable
 {
     private readonly TwitchClientConfig _config;
-    private readonly ClientWebSocket _webSocket;
+    private ClientWebSocket _webSocket;
     private readonly RateLimiter _rateLimiter;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly SemaphoreSlim _reconnectLock = new(1, 1);
@@ -243,9 +243,7 @@ internal sealed class IrcConnection : IAsyncDisposable
 
             // Dispose old WebSocket and create new one
             _webSocket.Dispose();
-            var newWebSocket = new ClientWebSocket();
-            typeof(IrcConnection).GetField("_webSocket", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.SetValue(this, newWebSocket);
+            _webSocket = new ClientWebSocket();
 
             await ConnectAsync(_disposeCts.Token);
 

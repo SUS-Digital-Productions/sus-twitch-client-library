@@ -11,7 +11,7 @@ namespace SusTwitchClient.EventSub;
 internal sealed class EventSubConnection : IAsyncDisposable
 {
     private readonly TwitchClientConfig _config;
-    private readonly ClientWebSocket _webSocket;
+    private ClientWebSocket _webSocket;
     private readonly SemaphoreSlim _reconnectLock = new(1, 1);
     private readonly CancellationTokenSource _disposeCts = new();
     
@@ -214,18 +214,8 @@ internal sealed class EventSubConnection : IAsyncDisposable
                     _isConnected = false;
                     await DisconnectAsync();
                     
-                    // Update config URL temporarily for reconnect
-                    var originalUrl = _config.EventSubServer;
-                    _config.EventSubServer = url;
-                    
-                    try
-                    {
-                        await ReconnectAsync();
-                    }
-                    finally
-                    {
-                        _config.EventSubServer = originalUrl;
-                    }
+                    // Reconnect using the provided URL
+                    await ReconnectAsync(url);
                 }
             }
         }
@@ -257,11 +247,11 @@ internal sealed class EventSubConnection : IAsyncDisposable
     {
         if (!expected && _config.AutoReconnect && !_isDisposed)
         {
-            await ReconnectAsync();
+            await ReconnectAsync(null);
         }
     }
 
-    private async Task ReconnectAsync()
+    private async Task ReconnectAsync(string? reconnectUrl)
     {
         await _reconnectLock.WaitAsync();
         try
@@ -279,11 +269,20 @@ internal sealed class EventSubConnection : IAsyncDisposable
 
             // Dispose old WebSocket and create new one
             _webSocket.Dispose();
-            var newWebSocket = new ClientWebSocket();
-            typeof(EventSubConnection).GetField("_webSocket", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.SetValue(this, newWebSocket);
+            _webSocket = new ClientWebSocket();
 
-            await ConnectAsync(_disposeCts.Token);
+            // Connect to custom URL if provided, otherwise use configured server
+            if (!string.IsNullOrEmpty(reconnectUrl))
+            {
+                await _webSocket.ConnectAsync(new Uri(reconnectUrl), _disposeCts.Token);
+                _isConnected = true;
+                _reconnectAttempts = 0;
+                _receiveTask = ReceiveLoopAsync(_disposeCts.Token);
+            }
+            else
+            {
+                await ConnectAsync(_disposeCts.Token);
+            }
         }
         catch (Exception ex)
         {
