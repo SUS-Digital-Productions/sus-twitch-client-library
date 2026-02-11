@@ -62,7 +62,7 @@ public sealed class TwitchClient : IDisposable, IAsyncDisposable
         
         if (_config.EnableIrc)
         {
-            _ircConnection = new IrcConnection(_config);
+            _ircConnection = new IrcConnection(_config, this);
             _ircConnection.Connected += OnIrcConnected;
             _ircConnection.Disconnected += OnIrcDisconnected;
             _ircConnection.MessageReceived += OnIrcMessageReceived;
@@ -71,7 +71,7 @@ public sealed class TwitchClient : IDisposable, IAsyncDisposable
 
         if (_config.EnableEventSub)
         {
-            _eventSubConnection = new EventSubConnection(_config);
+            _eventSubConnection = new EventSubConnection(_config, this);
             _eventSubConnection.Notification += OnEventSubNotification;
             _eventSubConnection.Error += OnEventSubError;
         }

@@ -11,6 +11,7 @@ namespace SusTwitchClient.IRC;
 internal sealed class IrcConnection : IAsyncDisposable
 {
     private readonly TwitchClientConfig _config;
+    private readonly TwitchClient _client;
     private ClientWebSocket _webSocket;
     private readonly RateLimiter _rateLimiter;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
@@ -30,9 +31,10 @@ internal sealed class IrcConnection : IAsyncDisposable
 
     public bool IsConnected => _isConnected && _webSocket.State == WebSocketState.Open;
 
-    public IrcConnection(TwitchClientConfig config)
+    public IrcConnection(TwitchClientConfig config, TwitchClient client)
     {
         _config = config;
+        _client = client;
         _webSocket = new ClientWebSocket();
         _rateLimiter = new RateLimiter(config.RateLimitMessages, config.RateLimitPeriodMs);
     }
@@ -272,7 +274,7 @@ internal sealed class IrcConnection : IAsyncDisposable
     {
         if (Connected != null)
         {
-            await Connected.Invoke(null!, new ConnectedEventArgs());
+            await Connected.Invoke(_client, new ConnectedEventArgs());
         }
     }
 
@@ -280,7 +282,7 @@ internal sealed class IrcConnection : IAsyncDisposable
     {
         if (Disconnected != null)
         {
-            await Disconnected.Invoke(null!, new DisconnectedEventArgs
+            await Disconnected.Invoke(_client, new DisconnectedEventArgs
             {
                 Reason = reason,
                 Expected = expected
@@ -292,7 +294,7 @@ internal sealed class IrcConnection : IAsyncDisposable
     {
         if (MessageReceived != null)
         {
-            await MessageReceived.Invoke(null!, args);
+            await MessageReceived.Invoke(_client, args);
         }
     }
 
@@ -300,7 +302,7 @@ internal sealed class IrcConnection : IAsyncDisposable
     {
         if (Error != null)
         {
-            await Error.Invoke(null!, new TwitchErrorEventArgs
+            await Error.Invoke(_client, new TwitchErrorEventArgs
             {
                 Message = message,
                 Exception = exception

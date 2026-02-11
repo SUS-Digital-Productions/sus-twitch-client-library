@@ -11,6 +11,7 @@ namespace SusTwitchClient.EventSub;
 internal sealed class EventSubConnection : IAsyncDisposable
 {
     private readonly TwitchClientConfig _config;
+    private readonly TwitchClient _client;
     private ClientWebSocket _webSocket;
     private readonly SemaphoreSlim _reconnectLock = new(1, 1);
     private readonly CancellationTokenSource _disposeCts = new();
@@ -26,9 +27,10 @@ internal sealed class EventSubConnection : IAsyncDisposable
 
     public bool IsConnected => _isConnected && _webSocket.State == WebSocketState.Open;
 
-    public EventSubConnection(TwitchClientConfig config)
+    public EventSubConnection(TwitchClientConfig config, TwitchClient client)
     {
         _config = config;
+        _client = client;
         _webSocket = new ClientWebSocket();
     }
 
@@ -186,7 +188,7 @@ internal sealed class EventSubConnection : IAsyncDisposable
 
             if (Notification != null)
             {
-                await Notification.Invoke(null!, new EventSubNotificationEventArgs
+                await Notification.Invoke(_client, new EventSubNotificationEventArgs
                 {
                     SubscriptionType = subscriptionType,
                     EventData = eventJson,
@@ -298,7 +300,7 @@ internal sealed class EventSubConnection : IAsyncDisposable
     {
         if (Error != null)
         {
-            await Error.Invoke(null!, new TwitchErrorEventArgs
+            await Error.Invoke(_client, new TwitchErrorEventArgs
             {
                 Message = message,
                 Exception = exception
